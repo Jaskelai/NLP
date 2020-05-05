@@ -17,8 +17,7 @@ def read_from_pickle(name):
 
 
 def create_embedding_matrix(df, word_index, embedding_dim):
-    vocab_size = len(word_index) + 1
-    embedding_matrix = np.zeros((vocab_size, embedding_dim))
+    embedding_matrix = np.zeros((REVIEWS_VOCAB_SIZE, embedding_dim))
     for index in range(len(df["word"])):
         if df["word"][index] in word_index:
             idx = word_index[df["word"][index]]
@@ -33,6 +32,9 @@ file_name_df_normalized_training = "df_normalized_training.pkl"
 file_name_df_normalized_test = "df_normalized_test.pkl"
 df_train = read_from_pickle(filename)
 
+LENGTH_VECTOR = 300
+LENGTH_RUS_VECT_VECTOR = df_train['value'][0]
+
 # получаем словарь с закодированными словами
 tokenizer = Tokenizer(num_words=189193)
 tokenizer.fit_on_texts(df_train["word"])
@@ -46,21 +48,23 @@ Reviews_train["text"] = tokenizer.texts_to_sequences(Reviews_train["text"])
 Reviews_test["text"] = tokenizer.texts_to_sequences(Reviews_test["text"])
 
 # подготавливаем отзывы (дополняем до длины в 300 и до 3 в случае с классами)
-reviews_train_prepared = pad_sequences(Reviews_train["text"].to_numpy(), maxlen=300, padding='post')
-reviews_test_prepared = pad_sequences(Reviews_test["text"].to_numpy(), maxlen=300, padding='post')
+reviews_train_prepared = pad_sequences(Reviews_train["text"].to_numpy(), maxlen=LENGTH_VECTOR, padding='post')
+reviews_test_prepared = pad_sequences(Reviews_test["text"].to_numpy(), maxlen=LENGTH_VECTOR, padding='post')
 labels_train_prepared = keras.utils.to_categorical(Reviews_train["label"], 3)
 labels_test_prepared = keras.utils.to_categorical(Reviews_test["label"], 3)
 
 # создаем эмбеддинг
-embedding_matrix = create_embedding_matrix(df_train, tokenizer.word_index, 300)
+REVIEWS_VOCAB_SIZE = len(tokenizer.word_index) + 1
+embedding_matrix = create_embedding_matrix(df_train, tokenizer.word_index, LENGTH_VECTOR)
 
 batch_size = 32
 epochs = 3
 
 # создаем нейронку, добавляем слои, компилируем
 model = Sequential()
-model.add(Embedding(142734, 300, weights=[embedding_matrix], input_length=300))
-model.add(LSTM(300, dropout=0.2, recurrent_dropout=0.2))
+output = 300
+model.add(Embedding(REVIEWS_VOCAB_SIZE, output, weights=[embedding_matrix], input_length=LENGTH_VECTOR))
+model.add(LSTM(output, dropout=0.2, recurrent_dropout=0.2))
 model.add(Dense(3, activation='sigmoid'))
 
 model.compile(metrics=["accuracy"], optimizer='adam', loss='binary_crossentropy')
